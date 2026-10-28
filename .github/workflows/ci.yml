@@ -44,6 +44,18 @@ jobs:
         run: dotnet restore StoreFlow.sln
       - name: Build
         run: dotnet build StoreFlow.sln -c Release --no-restore --nologo
+      - name: Audit dependencies
+        shell: pwsh
+        run: |
+          $json = dotnet list StoreFlow.sln package --vulnerable --include-transitive --format json
+          if ($LASTEXITCODE -ne 0) { throw 'Dependency audit failed.' }
+          $report = ($json -join "`n") | ConvertFrom-Json
+          $packages = @($report.projects | ForEach-Object { $_.frameworks } | ForEach-Object { @($_.topLevelPackages) + @($_.transitivePackages) } | Where-Object { $_.vulnerabilities.Count -gt 0 })
+          if ($packages.Count -gt 0) {
+            $packages | Select-Object id, resolvedVersion | Format-Table
+            throw 'Known vulnerable dependencies found.'
+          }
+          Write-Output 'No known vulnerable NuGet dependencies found.'
       - name: Unit tests
         run: dotnet test StoreFlow.UnitTests -c Release --no-build --logger "trx;LogFileName=unit-tests.trx" --results-directory TestResults
       - name: Integration tests
