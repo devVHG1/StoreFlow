@@ -1,0 +1,49 @@
+name: storeflow
+
+x-api-environment: &api-environment
+  ASPNETCORE_ENVIRONMENT: Production
+  ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=${POSTGRES_DB:-storeflow};Username=${POSTGRES_USER:-storeflow};Password=${POSTGRES_PASSWORD:?Run scripts/Initialize-DockerEnv.ps1 first}"
+  Jwt__Key: "${JWT_KEY:?Run scripts/Initialize-DockerEnv.ps1 first}"
+  Jwt__Issuer: StoreFlow
+  Jwt__Audience: StoreFlow.Client
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-storeflow}
+      POSTGRES_USER: ${POSTGRES_USER:-storeflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  migrate:
+    image: storeflow-api:local
+    build: .
+    command: ["--migrate"]
+    environment: *api-environment
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    image: storeflow-api:local
+    build: .
+    environment:
+      <<: *api-environment
+      Swagger__Enabled: "true"
+    ports:
+      - "127.0.0.1:${API_PORT:-8080}:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

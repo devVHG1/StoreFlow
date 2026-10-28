@@ -1,0 +1,45 @@
+@host = http://localhost:5276
+@accessToken = вставте_accessToken_зі_Swagger
+@email = customer@example.com
+@password = введіть_власний_пароль
+
+GET {{host}}/api/products?search=книга&minPrice=0&sortBy=price&sortDirection=asc&page=1&pageSize=20
+Accept: application/json
+
+###
+
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{"firstName":"Іван","lastName":"Коваленко","email":"{{email}}","password":"{{password}}"}
+
+###
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{"email":"{{email}}","password":"{{password}}"}
+
+###
+GET {{host}}/api/users/me
+Authorization: Bearer {{accessToken}}
+
+###
+GET {{host}}/api/orders
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+# Підставте id наявного товару.
+POST {{host}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{"items":[{"productId":1,"quantity":2}]}
+
+###
+PUT {{host}}/api/orders/1/status
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{"status":"Processing"}
+
