@@ -1,5 +1,7 @@
 # StoreFlow
 
+[![StoreFlow CI](https://github.com/devVHG1/StoreFlow/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/devVHG1/StoreFlow/actions/workflows/ci.yml)
+
 ASP.NET Core 8 Web API для каталогу товарів і замовлень із PostgreSQL та EF Core.
 
 ## Запуск
@@ -82,7 +84,19 @@ finally {
 }
 ```
 
+Перевірка запущеного стека без зміни даних:
+
+```powershell
+pwsh -NoProfile -File scripts/Test-DockerStack.ps1
+```
+
+Команда перевіряє PostgreSQL, завершення міграцій, /health, основні шляхи Swagger і читання Products.
+Порт API визначається автоматично, зокрема після зміни API_PORT.
+
 Журнали: docker compose logs --tail 100. Зупинка зі збереженням бази: docker compose down.
+Наступного дня достатньо запустити Docker Desktop і виконати docker compose up -d.
+Після зміни коду використовуйте docker compose up --build -d.
+Коротка інструкція роботи й підсумок перевірок: [docs/PROJECT-STATUS.md](docs/PROJECT-STATUS.md).
 Файл .env з фактичними секретами виключено з Git і Docker build context.
 Не публікуйте вміст .env та повний вивід docker compose config.
 Повторний Initialize-DockerEnv.ps1 зберігає наявні секрети.
@@ -317,7 +331,7 @@ Workflow .github/workflows/ci.yml запускається для push у main/m
 Другий job збирає Docker-образ, запускає Compose, перевіряє /health і Swagger та зупиняє стек.
 Результати тестів зберігаються як артефакти workflow.
 Пароль PostgreSQL у job tests належить лише одноразовому сервісу CI та не використовується локально.
-Зелений статус можна підтвердити лише після виконання workflow в опублікованому репозиторії.
+Перший успішний прогін на GitHub від 28.10.2026: 40 unit-тестів, 1060 інтеграційних перевірок, Docker build і перевірка API. Поточний результат дивіться за значком CI на початку README.
 
 ## Схема бази даних
 
