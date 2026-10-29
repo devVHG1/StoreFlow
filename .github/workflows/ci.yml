@@ -97,6 +97,9 @@ jobs:
           curl --fail --silent http://localhost:8080/ > /tmp/storeflow-panel.html
           grep -q "StoreFlow" /tmp/storeflow-panel.html
           curl --fail --silent http://localhost:8080/panel.js > /dev/null
+          curl --fail --silent http://localhost:8080/shop.js > /dev/null
+          curl --fail --silent http://localhost:8080/shop.css > /dev/null
+          curl --fail --silent http://localhost:8080/manager.html > /dev/null
           curl --fail --silent http://localhost:8080/swagger/v1/swagger.json > /tmp/storeflow-swagger.json
           python3 -c 'import json; d=json.load(open("/tmp/storeflow-swagger.json")); assert "/api/orders" in d["paths"] and "/api/auth/login" in d["paths"]'
       - name: Logs on failure
