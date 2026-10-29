@@ -44,6 +44,8 @@ jobs:
         run: dotnet restore StoreFlow.sln
       - name: Build
         run: dotnet build StoreFlow.sln -c Release --no-restore --nologo
+      - name: Frontend regression tests
+        run: node --test scripts/frontend-tests.cjs
       - name: Audit dependencies
         shell: pwsh
         run: |
