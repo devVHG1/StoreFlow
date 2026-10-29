@@ -4,7 +4,7 @@ using StoreFlow.Domain.Enums;
 namespace StoreFlow.Application.DTOs;
 
 public record OrderItemDto(int Id, int ProductId, int Quantity, decimal UnitPrice, decimal LineTotal);
-public record OrderDto(int Id, int UserId, DateTime CreatedAt, OrderStatus Status, decimal TotalAmount, List<OrderItemDto> Items);
+public record OrderDto(int Id, int UserId, DateTime CreatedAt, OrderStatus Status, decimal TotalAmount, List<OrderItemDto> Items, DateTime? ReservationExpiresAtUtc = null);
 
 public class CreateOrderItemDto
 {
@@ -16,6 +16,8 @@ public class CreateOrderItemDto
 
 public class CreateOrderDto : IValidatableObject
 {
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? IdempotencyKey { get; set; }
     [Range(1, int.MaxValue, ErrorMessage = "Вкажіть коректний id користувача.")]
     public int? UserId { get; set; }
     [Required(ErrorMessage = "Додайте позиції замовлення.")]
@@ -38,6 +40,8 @@ public class UpdateOrderItemRequest
 
 public class UpdateOrderStatusRequest
 {
+    [StringLength(500, ErrorMessage = "Причина має містити до 500 символів.")]
+    public string? Reason { get; set; }
     [EnumDataType(typeof(OrderStatus), ErrorMessage = "Вкажіть коректний статус замовлення.")]
     public OrderStatus Status { get; set; }
 }

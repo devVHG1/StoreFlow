@@ -19,6 +19,7 @@ public class ProductService(ICatalogRepository repository) : IProductService
         await ValidateCategoryAsync(request.CategoryId!.Value, ct);
         var entity = new Product();
         Apply(entity, request);
+        repository.SetAudit("ProductCreated");
         repository.AddProduct(entity);
         await repository.SaveAsync(ct);
         return Map(entity);
@@ -28,6 +29,16 @@ public class ProductService(ICatalogRepository repository) : IProductService
     {
         var entity = await FindAsync(id, ct);
         await ValidateCategoryAsync(request.CategoryId!.Value, ct);
+        if (request.Version is null)
+            throw new RequestValidationException(400, new() { ["version"] = ["Передайте поточну версію товару."] });
+        if (request.Version != entity.Version)
+            throw new BusinessException(409, "Товар уже змінено. Прочитайте актуальні дані.");
+        if (entity.StockQuantity != request.StockQuantity)
+        {
+            if (string.IsNullOrWhiteSpace(request.StockChangeReason))
+                throw new RequestValidationException(400, new() { ["stockChangeReason"] = ["Вкажіть причину коригування залишку."] });
+            repository.SetAudit("ManualAdjustment: " + request.StockChangeReason.Trim());
+        }
         Apply(entity, request);
         await repository.SaveAsync(ct);
     }
@@ -50,7 +61,7 @@ public class ProductService(ICatalogRepository repository) : IProductService
             throw new CatalogException(400, "Вказано неіснуючу категорію.");
     }
 
-    private static ProductDto Map(Product entity) => new(entity.Id, entity.Name, entity.Description, entity.Price, entity.StockQuantity, entity.CategoryId);
+    private static ProductDto Map(Product entity) => new(entity.Id, entity.Name, entity.Description, entity.Price, entity.StockQuantity, entity.CategoryId, entity.Version);
 
     private static void Apply(Product entity, ProductRequest request)
     {

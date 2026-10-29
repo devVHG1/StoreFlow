@@ -4,6 +4,10 @@ if ([string]::IsNullOrWhiteSpace($AccessToken)) { throw 'Задайте STOREFLO
 $checks = 0
 function Call-Api($Method, $Path, $Body, $Expected) {
     $params = @{ Method = $Method; Uri = "$BaseUrl/api/$Path"; SkipHttpErrorCheck = $true; TimeoutSec = 20; Headers = @{ Authorization = "Bearer $AccessToken" } }
+    if ($Method -eq 'PUT' -and $Path -match '^products/\d+$' -and $Body) {
+        $current = Invoke-RestMethod -Uri "$BaseUrl/api/$Path" -Headers $params.Headers -SkipHttpErrorCheck
+        if ($null -ne $current.version) { $Body.version = $current.version; $Body.stockChangeReason = "QA stock adjustment" }
+    }
     if ($null -ne $Body) { $params.ContentType = 'application/json'; $params.Body = ($Body | ConvertTo-Json) }
     $response = Invoke-WebRequest @params
     $content = if ($response.Content -is [byte[]]) { [Text.Encoding]::UTF8.GetString($response.Content) } else { [string]$response.Content }

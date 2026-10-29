@@ -13,7 +13,7 @@ internal static class ProductSearchSuite
     {
         var checks = new List<string>(); int failures = 0;
         void Check(string label, bool ok) { checks.Add((ok ? "PASS " : "FAIL ") + label); if (!ok) failures++; }
-        using var client = new HttpClient { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(15) };
+        using var client = new HttpClient(new ContractHandler()) { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(15) };
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",token);
         await using var db = new NpgsqlConnection(connection);
         await db.OpenAsync();

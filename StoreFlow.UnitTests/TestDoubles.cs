@@ -42,6 +42,7 @@ internal sealed class Users : IUserRepository
 }
 internal sealed class Catalog : ICatalogRepository
 {
+    public void SetAudit(string reason) { }
     public List<Category> Categories { get; } = [];
     public List<Product> Products { get; } = [];
     public bool UsedInOrder { get; set; }
@@ -59,6 +60,11 @@ internal sealed class Catalog : ICatalogRepository
 }
 internal sealed class Orders : IOrderRepository
 {
+    public List<OrderRequest> Requests { get; } = [];
+    public void SetAudit(string reason, Guid? reference) { }
+    public Task<OrderRequest?> FindRequestAsync(int actorId, string key, CancellationToken ct) => Task.FromResult(Requests.SingleOrDefault(x => x.ActorId == actorId && x.Key == key));
+    public void AddRequest(OrderRequest request) => Requests.Add(request);
+    public Task<List<int>> FindExpiredAsync(DateTime now, CancellationToken ct) => Task.FromResult(Rows.Where(x => !x.IsDeleted && x.Status == StoreFlow.Domain.Enums.OrderStatus.Pending && x.ReservationExpiresAtUtc <= now).Select(x => x.Id).ToList());
     public List<Order> Rows { get; } = [];
     public List<Product> Products { get; } = [];
     public bool UserExists { get; set; }=true;

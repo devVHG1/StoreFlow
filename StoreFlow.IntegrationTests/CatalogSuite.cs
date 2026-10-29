@@ -12,7 +12,7 @@ public static async Task<int> RunAsync(string baseUrl, string connectionString, 
 var report = new List<string>();
 var failures = 0;
 void Check(string label, bool ok) { report.Add((ok ? "PASS " : "FAIL ") + label); if (!ok) failures++; }
-using var client = new HttpClient { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(20) };
+using var client = new HttpClient(new ContractHandler()) { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(20) };
 client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
 await using var db = new NpgsqlConnection(connectionString);
 await db.OpenAsync();

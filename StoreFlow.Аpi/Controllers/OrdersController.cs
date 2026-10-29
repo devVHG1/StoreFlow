@@ -17,8 +17,11 @@ public class OrdersController(IOrderService service) : ControllerBase
     public async Task<ActionResult<OrderDto>> GetById(int id, CancellationToken ct) => Ok(await service.GetAsync(id, ct));
 
     [HttpPost]
-    public async Task<ActionResult<OrderDto>> Create(CreateOrderDto request, CancellationToken ct)
+    public async Task<ActionResult<OrderDto>> Create(CreateOrderDto request, [FromHeader(Name = "Idempotency-Key")] string? key, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(key) || key.Length > 128 || key.Any(c => c < 33 || c > 126))
+            throw new StoreFlow.Application.Services.RequestValidationException(400, new() { ["idempotencyKey"] = ["Передайте Idempotency-Key: 1–128 друкованих ASCII-символів без пробілів."] });
+        request.IdempotencyKey = key;
         var result = await service.CreateAsync(request, ct);
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }

@@ -49,5 +49,6 @@ public class CatalogRepository(StoreFlowDbContext db) : ICatalogRepository
     public void AddProduct(Product product) => db.Products.Add(product);
     public void RemoveCategory(Category category) => db.Categories.Remove(category);
     public void RemoveProduct(Product product) => db.Products.Remove(product);
+    public void SetAudit(string reason) => db.AuditReason = reason;
     public async Task SaveAsync(CancellationToken ct) => await db.SaveChangesAsync(ct);
 }

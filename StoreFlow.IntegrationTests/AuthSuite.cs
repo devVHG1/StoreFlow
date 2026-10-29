@@ -19,7 +19,7 @@ internal static class AuthSuite
         var checks = new List<string>();
         int failures = 0;
         void Check(string label, bool ok) { checks.Add((ok ? "PASS " : "FAIL ") + label); if (!ok) failures++; }
-        using var client = new HttpClient { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(15) };
+        using var client = new HttpClient(new ContractHandler()) { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(15) };
         await using var db = new NpgsqlConnection(connection);
         await db.OpenAsync();
         async Task<object?> Sql(string sql, params object[] values)

@@ -1,8 +1,9 @@
-﻿namespace StoreFlow.Domain.Entities;
+namespace StoreFlow.Domain.Entities;
 
 public class Product
 {
     public int Id { get; set; }
+    public uint Version { get; set; }
 
     public string Name { get; set; } = string.Empty;
 

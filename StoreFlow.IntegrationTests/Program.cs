@@ -35,7 +35,7 @@ var created = false;
 var apiLogs = new System.Collections.Concurrent.ConcurrentQueue<string>();
 Directory.CreateDirectory(Path.Combine(root, "StoreFlow.IntegrationTests", "results"));
 var output = Path.Combine(root, "StoreFlow.IntegrationTests", "results");
-foreach (var reportName in new[] { "orders.txt", "catalog.txt", "auth.txt", "validation.txt", "search.txt" })
+foreach (var reportName in new[] { "orders.txt", "catalog.txt", "auth.txt", "validation.txt", "search.txt", "hardening.txt" })
     File.Delete(Path.Combine(output, reportName));
 try
 {
@@ -107,7 +107,7 @@ try
     api.OutputDataReceived += (_, e) => { if (e.Data != null) apiLogs.Enqueue(e.Data); };
     api.ErrorDataReceived += (_, e) => { if (e.Data != null) apiLogs.Enqueue(e.Data); };
     api.BeginOutputReadLine(); api.BeginErrorReadLine();
-    using var client = new HttpClient { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(15) };
+    using var client = new HttpClient(new ContractHandler()) { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(15) };
     bool ready = false;
     for (int attempt = 0; attempt < 100; attempt++)
     {
@@ -190,7 +190,7 @@ try
     await Call("POST","/api/orders","{}",400,true);
     await Call("POST","/api/orders","null",400,true);
     await Call("POST","/api/orders","{invalid",400,true);
-    Check("Invalid requests create no orders",Convert.ToInt64(await Sql("SELECT count(*) FROM \"Orders\""))==0);
+    Check("Invalid requests create no orders",Convert.ToInt64(await Sql("SELECT count(*) FROM \"Orders\" WHERE NOT \"IsDeleted\""))==0);
     Check("Invalid requests leave stock unchanged",await Stock(a)==10 && await Stock(b)==20);
 
     var order=await Call("POST","/api/orders",OrderBody((a,2),(b,3)),201);
@@ -244,7 +244,7 @@ try
     await Call("PUT",$"/api/orders/{oid}/status",new{status="Processing"},409);
     await Call("DELETE","/api/orders/"+oid,null,204);
     Check("Deleting cancelled order does not change stock",await Stock(a)==10);
-    Check("Deleting order cascades only its items",Convert.ToInt64(await Sql("SELECT count(*) FROM \"OrderItems\" WHERE \"OrderId\"=$1",oid))==0);
+    Check("Deleting order preserves items for audit",Convert.ToInt64(await Sql("SELECT count(*) FROM \"OrderItems\" WHERE \"OrderId\"=$1",oid))>0);
     await Call("GET","/api/orders/"+oid,null,404);
     order=await Call("POST","/api/orders",OrderBody((a,2)),201);
     oid=order!["id"]!.GetValue<int>();
@@ -254,7 +254,7 @@ try
     await Call("DELETE","/api/orders/"+oid,null,204);
     Check("Deleting Pending order returns stock",await Stock(a)==10);
     await Call("POST","/api/orders",OrderBody((a,1),(b,21)),400);
-    Check("Partial failure rolls back all stock and order inserts",await Stock(a)==10 && await Stock(b)==20 && Convert.ToInt64(await Sql("SELECT count(*) FROM \"Orders\""))==0);
+    Check("Partial failure rolls back all stock and order inserts",await Stock(a)==10 && await Stock(b)==20 && Convert.ToInt64(await Sql("SELECT count(*) FROM \"Orders\" WHERE NOT \"IsDeleted\""))==0);
 
     order=await Call("POST","/api/orders",OrderBody((b,2)),201);
     oid=order!["id"]!.GetValue<int>();
@@ -337,12 +337,13 @@ try
     }
     failures += await ProductSearchSuite.RunAsync(baseUrl, connection, adminToken, Path.Combine(output, "search.txt"));
     failures += await ValidationSuite.RunAsync(baseUrl, connection, adminToken, Path.Combine(output, "validation.txt"));
+    failures += await HardeningSuite.RunAsync(baseUrl, connection, adminToken, Path.Combine(output, "hardening.txt"));
     failures += await AuthSuite.RunAsync(root, baseUrl, connection, jwtKey, adminToken, adminEmail, adminPassword, Path.Combine(output, "auth.txt"));
 }
 catch(Exception error)
 {
     Check("Test execution: "+error.GetType().Name+" "+error.Message,false);
-    foreach(var line in apiLogs.TakeLast(15)) Console.WriteLine(line);
+    foreach(var line in apiLogs.TakeLast(70)) Console.WriteLine(line);
 }
 finally
 {
@@ -365,7 +366,9 @@ var validationLines=File.Exists(Path.Combine(output,"validation.txt"))?await Fil
 int validationChecks=validationLines.Count(x=>x.StartsWith("PASS ")||x.StartsWith("FAIL "));
 var searchLines=File.Exists(Path.Combine(output,"search.txt"))?await File.ReadAllLinesAsync(Path.Combine(output,"search.txt")):[];
 int searchChecks=searchLines.Count(x=>x.StartsWith("PASS ")||x.StartsWith("FAIL "));
-results.Insert(0,$"Total: {results.Count + catalogChecks + authChecks + validationChecks + searchChecks} checks; Orders/middleware/lifecycle: {results.Count}; Catalog: {catalogChecks}; Auth: {authChecks}; Validation: {validationChecks}; Search: {searchChecks}; failures: {failures}");
+var hardeningLines = File.Exists(Path.Combine(output,"hardening.txt")) ? await File.ReadAllLinesAsync(Path.Combine(output,"hardening.txt")) : [];
+int hardeningChecks = hardeningLines.Count(x => x.StartsWith("PASS ") || x.StartsWith("FAIL "));
+results.Insert(0,$"Total: {results.Count + catalogChecks + authChecks + validationChecks + searchChecks + hardeningChecks} checks; Orders/middleware/lifecycle: {results.Count}; Catalog: {catalogChecks}; Auth: {authChecks}; Validation: {validationChecks}; Search: {searchChecks}; failures: {failures}");
 await File.WriteAllLinesAsync(Path.Combine(output,"orders.txt"),results);
 Console.WriteLine(results[0]);
 foreach(var line in results.Where(x=>x.StartsWith("FAIL"))) Console.WriteLine(line);

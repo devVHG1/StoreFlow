@@ -4,7 +4,7 @@ using StoreFlow.Application.Validation;
 namespace StoreFlow.Application.DTOs;
 
 public record CategoryDto(int Id, string Name, string? Description);
-public record ProductDto(int Id, string Name, string? Description, decimal Price, int StockQuantity, int CategoryId);
+public record ProductDto(int Id, string Name, string? Description, decimal Price, int StockQuantity, int CategoryId, uint Version = 0);
 
 public class CategoryRequest
 {
@@ -15,6 +15,9 @@ public class CategoryRequest
 
 public class ProductRequest : CategoryRequest
 {
+    public uint? Version { get; set; }
+    [StringLength(500, ErrorMessage = "Причина має містити до 500 символів.")]
+    public string? StockChangeReason { get; set; }
     [Required(ErrorMessage = "Вкажіть ціну."), PositivePrice]
     public decimal? Price { get; set; }
     [Range(0, int.MaxValue, ErrorMessage = "Залишок не може бути від’ємним.")]

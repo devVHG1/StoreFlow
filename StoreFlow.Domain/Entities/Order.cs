@@ -1,10 +1,13 @@
-﻿using StoreFlow.Domain.Enums;
+using StoreFlow.Domain.Enums;
 
 namespace StoreFlow.Domain.Entities;
 
 public class Order
 {
     public int Id { get; set; }
+    public Guid Reference { get; set; } = Guid.NewGuid();
+    public DateTime? ReservationExpiresAtUtc { get; set; }
+    public bool IsDeleted { get; set; }
 
     public int UserId { get; set; }
 

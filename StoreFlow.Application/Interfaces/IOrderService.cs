@@ -11,6 +11,7 @@ public interface IOrderService
     Task<OrderDto> UpdateItemAsync(int id, int itemId, UpdateOrderItemRequest request, CancellationToken ct);
     Task<OrderDto> RemoveItemAsync(int id, int itemId, CancellationToken ct);
     Task<OrderDto> ChangeStatusAsync(int id, UpdateOrderStatusRequest request, CancellationToken ct);
+    Task ExpireReservationsAsync(CancellationToken ct);
     Task DeleteAsync(int id, CancellationToken ct);
 }
 

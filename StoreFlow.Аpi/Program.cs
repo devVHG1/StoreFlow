@@ -25,6 +25,7 @@ builder.Services.AddControllers().AddValidationResponses().AddJsonOptions(option
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddStoreFlowAuth(builder.Configuration);
 builder.Services.AddProblemDetails();
+builder.Services.AddHostedService<StoreFlow.Аpi.ReservationWorker>();
 
 var app = builder.Build();
 if (args.Contains("--migrate"))

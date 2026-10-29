@@ -15,5 +15,6 @@ public interface ICatalogRepository
     void AddProduct(Product product);
     void RemoveCategory(Category category);
     void RemoveProduct(Product product);
+    void SetAudit(string reason);
     Task SaveAsync(CancellationToken ct);
 }
