@@ -43,6 +43,15 @@ public class StoreFlowDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        foreach (var table in new[] { "Categories", "Products" })
+        {
+            var entity = table == "Categories" ? modelBuilder.Entity<Category>().Metadata : modelBuilder.Entity<Product>().Metadata;
+            modelBuilder.Entity(entity.ClrType).ToTable(table, t =>
+            {
+                t.HasCheckConstraint("CK_" + table + "_NameLength", "char_length(\"Name\") <= 200");
+                t.HasCheckConstraint("CK_" + table + "_DescriptionLength", "char_length(\"Description\") <= 4000");
+            });
+        }
         modelBuilder.Entity<Product>().Property(x => x.Version).IsRowVersion().HasColumnName("xmin");
         modelBuilder.Entity<Order>().HasIndex(x => new { x.Status, x.ReservationExpiresAtUtc });
         modelBuilder.Entity<OrderRequest>().Property(x => x.Key).HasMaxLength(128);

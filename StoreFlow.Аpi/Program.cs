@@ -91,6 +91,8 @@ if (app.Environment.IsDevelopment() || builder.Configuration.GetValue("Swagger:E
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseHttpsRedirection();
 app.UseRouting();
 app.UseAuthentication();

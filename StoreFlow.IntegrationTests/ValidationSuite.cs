@@ -81,6 +81,20 @@ internal static class ValidationSuite
             await Call("POST","/api/products","null",400,"body",true);
             await Call("POST","/api/products","{broken",400,"body",true);
 
+            foreach (var route in new[] { "/api/categories", "/api/products" })
+            {
+                await Call("POST", route, new { name = new string('x',201), price = 1, stockQuantity = 0, categoryId = category },400,"name");
+                await Call("POST", route, new { name = "Long description", description = new string('x',4001), price = 1, stockQuantity = 0, categoryId = category },400,"description");
+            }
+            foreach (var table in new[] { "Categories", "Products" })
+            foreach (var field in new[] { "Name", "Description" })
+            {
+                try {
+                    await Sql($"UPDATE \"{table}\" SET \"{field}\"=$1 WHERE \"Id\"=$2", new string('x',field == "Name" ? 201 : 4001), table == "Categories" ? category : product);
+                    Check("Database rejects oversized " + table + "." + field,false);
+                }
+                catch (PostgresException error) { Check("Database rejects oversized " + table + "." + field,error.SqlState == "23514"); }
+            }
             var originalRow = Convert.ToString(await Sql("SELECT row_to_json(p)::text FROM \"Products\" p WHERE \"Id\"=$1", product));
             await Call("PUT","/api/products/"+product,new{name="Bad",price=0,stockQuantity=0,categoryId=category},400,"price");
             await Call("PUT","/api/products/"+product,new{name="Bad",price=1,categoryId=category},400,"stockQuantity");

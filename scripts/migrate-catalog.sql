@@ -388,3 +388,43 @@ BEGIN
 END $EF$;
 COMMIT;
 
+START TRANSACTION;
+
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261029162629_BoundCatalogText') THEN
+    ALTER TABLE "Products" ADD CONSTRAINT "CK_Products_DescriptionLength" CHECK (char_length("Description") <= 4000);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261029162629_BoundCatalogText') THEN
+    ALTER TABLE "Products" ADD CONSTRAINT "CK_Products_NameLength" CHECK (char_length("Name") <= 200);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261029162629_BoundCatalogText') THEN
+    ALTER TABLE "Categories" ADD CONSTRAINT "CK_Categories_DescriptionLength" CHECK (char_length("Description") <= 4000);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261029162629_BoundCatalogText') THEN
+    ALTER TABLE "Categories" ADD CONSTRAINT "CK_Categories_NameLength" CHECK (char_length("Name") <= 200);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261029162629_BoundCatalogText') THEN
+    INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+    VALUES ('20261029162629_BoundCatalogText', '8.0.33');
+    END IF;
+END $EF$;
+COMMIT;
+

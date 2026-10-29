@@ -126,6 +126,7 @@ try
     Check("Swagger includes Orders and excludes WeatherForecast",
         (await client.GetStringAsync("/swagger/v1/swagger.json")).Contains("/api/orders") &&
         !(await client.GetStringAsync("/swagger/v1/swagger.json")).Contains("weatherforecast", StringComparison.OrdinalIgnoreCase));
+    Check("Manager panel and assets are served", (await client.GetStringAsync("/")).Contains("Панель менеджера") && (await client.GetStringAsync("/panel.js")).Contains("use strict") && (await client.GetStringAsync("/panel.css")).Contains("@media"));
     var swagger = JsonNode.Parse(await client.GetStringAsync("/swagger/v1/swagger.json"))!;
     Check("Swagger has PUT order status endpoint", swagger["paths"]!["/api/orders/{id}/status"]?["put"] != null);
     var productOperation = swagger["paths"]!["/api/products"]!["get"]!;

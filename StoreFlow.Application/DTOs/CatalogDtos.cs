@@ -9,7 +9,9 @@ public record ProductDto(int Id, string Name, string? Description, decimal Price
 public class CategoryRequest
 {
     [Required(ErrorMessage = "Вкажіть назву.")]
+    [StringLength(200, ErrorMessage = "Назва має містити до 200 символів.")]
     public string Name { get; set; } = string.Empty;
+    [StringLength(4000, ErrorMessage = "Опис має містити до 4000 символів.")]
     public string? Description { get; set; }
 }
 

@@ -39,7 +39,12 @@ namespace StoreFlow.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Categories");
+                    b.ToTable("Categories", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Categories_DescriptionLength", "char_length(\"Description\") <= 4000");
+
+                            t.HasCheckConstraint("CK_Categories_NameLength", "char_length(\"Name\") <= 200");
+                        });
                 });
 
             modelBuilder.Entity("StoreFlow.Domain.Entities.Order", b =>
@@ -210,7 +215,12 @@ namespace StoreFlow.Infrastructure.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.ToTable("Products");
+                    b.ToTable("Products", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Products_DescriptionLength", "char_length(\"Description\") <= 4000");
+
+                            t.HasCheckConstraint("CK_Products_NameLength", "char_length(\"Name\") <= 200");
+                        });
                 });
 
             modelBuilder.Entity("StoreFlow.Domain.Entities.StockMovement", b =>
