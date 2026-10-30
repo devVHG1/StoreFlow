@@ -23,9 +23,11 @@ try {
     & (Join-Path $PSScriptRoot 'Initialize-DockerEnv.ps1')
     if (-not (Test-DockerEngine)) {
         $desktop = 'C:\Program Files\Docker\Docker\Docker Desktop.exe'
-        if (-not $IsWindows -or -not (Test-Path -LiteralPath $desktop)) { throw 'Запустіть Docker та повторіть команду.' }
-        Write-Output 'Запускаємо Docker Desktop…'
-        Start-Process -FilePath $desktop -WindowStyle Hidden
+        if ($IsWindows -and (Test-Path -LiteralPath $desktop)) {
+            Write-Output 'Запускаємо Docker Desktop…'
+            Start-Process -FilePath $desktop -WindowStyle Hidden
+        }
+        else { Write-Output 'Очікуємо готовності Docker…' }
         $ready = $false
         $deadline = [Diagnostics.Stopwatch]::StartNew()
         while ($deadline.Elapsed.TotalSeconds -lt 60) {
@@ -34,7 +36,6 @@ try {
         }
         if (-not $ready) { throw 'Docker ще не готовий. Перевірте Docker Desktop і повторіть команду.' }
     }
-    & (Join-Path $PSScriptRoot 'Initialize-DockerEnv.ps1')
     docker compose config --quiet
     if ($LASTEXITCODE -ne 0) { throw 'Некоректні налаштування Docker Compose.' }
     docker compose up --build -d
