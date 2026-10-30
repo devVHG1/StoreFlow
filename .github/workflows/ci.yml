@@ -77,33 +77,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
-      - name: Generate temporary Docker secrets
+      - name: Start and verify full stack
         shell: pwsh
-        run: ./scripts/Initialize-DockerEnv.ps1
-      - name: Check Compose
-        run: docker compose config --quiet
-      - name: Build and start
-        run: docker compose up --build -d
-      - name: Wait for API and verify Swagger
-        shell: bash
-        run: |
-          ready=false
-          for attempt in $(seq 1 60); do
-            if curl --fail --silent http://localhost:8080/health; then
-              ready=true
-              break
-            fi
-            sleep 2
-          done
-          test "$ready" = true
-          curl --fail --silent http://localhost:8080/ > /tmp/storeflow-panel.html
-          grep -q "StoreFlow" /tmp/storeflow-panel.html
-          curl --fail --silent http://localhost:8080/panel.js > /dev/null
-          curl --fail --silent http://localhost:8080/shop.js > /dev/null
-          curl --fail --silent http://localhost:8080/shop.css > /dev/null
-          curl --fail --silent http://localhost:8080/manager.html > /dev/null
-          curl --fail --silent http://localhost:8080/swagger/v1/swagger.json > /tmp/storeflow-swagger.json
-          python3 -c 'import json; d=json.load(open("/tmp/storeflow-swagger.json")); assert "/api/orders" in d["paths"] and "/api/auth/login" in d["paths"]'
+        run: ./scripts/Start-Docker.ps1
       - name: Logs on failure
         if: failure()
         run: docker compose logs --no-color --tail 100

@@ -56,7 +56,17 @@ Swagger: http://localhost:5276/swagger
 ## Запуск у Docker
 
 Потрібні Docker із Linux-контейнерами, Docker Compose та PowerShell 7.
-Створіть локальні випадкові секрети й запустіть стек:
+Запуск усіх компонентів однією командою:
+
+```powershell
+pwsh -NoProfile -File scripts/Start-Docker.ps1
+```
+
+Команда зберігає наявні секрети й дані, створює `.env` за потреби, збирає API, застосовує міграції
+та перевіряє PostgreSQL, API, Swagger, магазин і панель команди. На Windows запускає встановлений Docker Desktop,
+якщо рушій не відповідає; очікування рушія має таймаут.
+
+Окремі кроки для ручного запуску:
 
 ```powershell
 pwsh -NoProfile -File scripts/Initialize-DockerEnv.ps1
@@ -391,7 +401,7 @@ dotnet test StoreFlow.UnitTests
 pwsh -NoProfile -File scripts/Run-IntegrationTests.ps1
 ```
 
-Потрібні .NET 8 або новіший SDK, PostgreSQL та право CREATE DATABASE у користувача підключення.
+Для повного локального прогону потрібні .NET 8 або новіший SDK, Node.js 20 або новіший, PostgreSQL та право CREATE DATABASE у користувача підключення. Скрипт запускає перевірки конфігурації, 4 перевірки інтерфейсу, Release build, unit-тести та інтеграційні перевірки. За потреби передайте -Configuration Debug.
 Виконавець перевірок читає підключення з User Secrets або ConnectionStrings__DefaultConnection.
 Тест створює окрему базу storeflow_orders_qa_..., запускає свій API на вільному порту та видаляє лише свою базу.
 Основна база не використовується для тестових записів.
