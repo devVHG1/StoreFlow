@@ -124,14 +124,22 @@ internal static class AuthSuite
             await Call("PUT",$"/api/orders/{order}/status",new{status="Cancelled"},404,secondToken);
             await Call("DELETE","/api/orders/"+order,null,404,secondToken);
             var orders=await Call("GET","/api/orders",null,200,secondToken);
-            Check("Customer list excludes other customers' orders",orders!.AsArray().All(x=>x!["userId"]!.GetValue<int>()==secondId) && orders.AsArray().All(x=>x!["id"]!.GetValue<int>()!=order));
+            Check("Customer list excludes other customers' orders",orders!["items"]!.AsArray().All(x=>x!["userId"]!.GetValue<int>()==secondId) && orders["items"]!.AsArray().All(x=>x!["id"]!.GetValue<int>()!=order));
             orders=await Call("GET","/api/orders",null,200,firstToken);
-            Check("Customer list includes own order",orders!.AsArray().Any(x=>x!["id"]!.GetValue<int>()==order) && orders.AsArray().All(x=>x!["userId"]!.GetValue<int>()==firstId));
+            Check("Customer list includes own order",orders!["items"]!.AsArray().Any(x=>x!["id"]!.GetValue<int>()==order) && orders["items"]!.AsArray().All(x=>x!["userId"]!.GetValue<int>()==firstId));
+            await Call("GET",$"/api/orders?userId={secondId}",null,403,firstToken);
+            orders=await Call("GET",$"/api/orders?userId={firstId}&pageSize=1",null,200,firstToken);
+            Check("Customer page count is scoped to owner",orders!["totalCount"]!.GetValue<int>()==1&&orders["items"]!.AsArray().Count==1&&orders["items"]![0]!["userId"]!.GetValue<int>()==firstId);
+            orders=await Call("GET",$"/api/orders?userId={firstId}",null,200,managerToken);
+            Check("Manager can filter a customer's orders",orders!["totalCount"]!.GetValue<int>()==1&&orders["items"]!.AsArray().All(x=>x!["userId"]!.GetValue<int>()==firstId));
             await Call("GET","/api/orders/"+order,null,200,managerToken);
             await Call("PUT",$"/api/orders/{order}/status",new{status="Processing"},403,firstToken);
             await Call("PUT",$"/api/orders/{order}/status",new{status="Cancelled"},200,firstToken);
             Check("Own cancellation restores stock",Convert.ToInt32(await Sql("SELECT \"StockQuantity\" FROM \"Products\" WHERE \"Id\"=$1",product))==10);
             await Call("DELETE","/api/orders/"+order,null,204,firstToken);
+            orders=await Call("GET","/api/orders",null,200,firstToken);
+            Check("Deleted order excluded from page count",orders!["totalCount"]!.GetValue<int>()==0&&orders["items"]!.AsArray().Count==0);
+
 
             own=await Call("POST","/api/orders",new{userId=secondId,items=new[]{new{productId=product,quantity=1}}},201,managerToken);
             order=own!["id"]!.GetValue<int>();

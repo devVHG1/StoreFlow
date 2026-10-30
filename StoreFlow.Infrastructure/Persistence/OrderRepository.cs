@@ -1,14 +1,29 @@
 using Microsoft.EntityFrameworkCore;
 using StoreFlow.Application.Interfaces;
+using StoreFlow.Application.DTOs;
+using StoreFlow.Domain.Enums;
 using StoreFlow.Domain.Entities;
 
 namespace StoreFlow.Infrastructure.Persistence;
 
 public class OrderRepository(StoreFlowDbContext db) : IOrderRepository
 {
-    public Task<List<Order>> GetAllAsync(int? userId, CancellationToken ct) =>
-        db.Orders.AsNoTracking().Where(x => !x.IsDeleted && (userId == null || x.UserId == userId))
-            .Include(x => x.Items).OrderBy(x => x.Id).ToListAsync(ct);
+    public async Task<(List<Order> Items, int TotalCount)> GetAllAsync(OrderQuery query, int? userId, CancellationToken ct)
+    {
+        var orders = db.Orders.AsNoTracking().Where(x => !x.IsDeleted && (userId == null || x.UserId == userId));
+        if (!string.IsNullOrEmpty(query.Status))
+        {
+            var status = Enum.Parse<OrderStatus>(query.Status);
+            orders = orders.Where(x => x.Status == status);
+        }
+        // Кількість і позиції належать одному знімку даних.
+        await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, ct);
+        var total = await orders.CountAsync(ct);
+        var items = await orders.OrderByDescending(x => x.Id).Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize).Include(x => x.Items).ToListAsync(ct);
+        await transaction.CommitAsync(ct);
+        return (items, total);
+    }
 
     public Task<Order?> GetAsync(int id, CancellationToken ct) =>
         db.Orders.AsNoTracking().Include(x => x.Items).SingleOrDefaultAsync(x => x.Id == id && !x.IsDeleted, ct);

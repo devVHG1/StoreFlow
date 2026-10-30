@@ -4,7 +4,7 @@ namespace StoreFlow.Application.Interfaces;
 
 public interface IOrderService
 {
-    Task<List<OrderDto>> GetAllAsync(CancellationToken ct);
+    Task<PagedResult<OrderDto>> GetAllAsync(OrderQuery query, CancellationToken ct);
     Task<OrderDto> GetAsync(int id, CancellationToken ct);
     Task<OrderDto> CreateAsync(CreateOrderDto request, CancellationToken ct);
     Task<OrderDto> AddItemAsync(int id, CreateOrderItemDto request, CancellationToken ct);

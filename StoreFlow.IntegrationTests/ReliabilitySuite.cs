@@ -51,6 +51,23 @@ internal static class ReliabilitySuite
                 try{await Sql($"UPDATE \"OrderItems\" SET {assignment} WHERE \"Id\"=$1",item);Check("Snapshot rejects "+assignment,false);}
                 catch(PostgresException error){Check("Snapshot rejects "+assignment,error.SqlState=="23514");}
             }
+            int owner=order!["userId"]!.GetValue<int>();
+            var count=Convert.ToInt32(await Sql("SELECT count(*) FROM \"Orders\" WHERE NOT \"IsDeleted\" AND \"UserId\"=$1",owner));
+            var page=await Call(HttpMethod.Get,$"orders?userId={owner}&pageSize=1",null,200);
+            int newest=Convert.ToInt32(await Sql("SELECT max(\"Id\") FROM \"Orders\" WHERE NOT \"IsDeleted\" AND \"UserId\"=$1",owner));
+            Check("Order page matches PostgreSQL count and newest id",page!["totalCount"]!.GetValue<int>()==count&&page["items"]!.AsArray().Count==1&&Id(page["items"]![0])==newest&&page["hasNextPage"]!.GetValue<bool>()&&!page["hasPreviousPage"]!.GetValue<bool>());
+            var second=await Call(HttpMethod.Get,$"orders?userId={owner}&pageSize=1&page=2",null,200);
+            Check("Order pages do not overlap",Id(second!["items"]![0])!=newest&&second["hasPreviousPage"]!.GetValue<bool>()&&second["totalCount"]!.GetValue<int>()==count);
+            page=await Call(HttpMethod.Get,$"orders?userId={owner}&pageSize=1&page=2147483647",null,200);
+            Check("Out-of-range order page is empty with correct count",page!["items"]!.AsArray().Count==0&&page["totalCount"]!.GetValue<int>()==count&&!page["hasNextPage"]!.GetValue<bool>());
+            page=await Call(HttpMethod.Get,$"orders?userId={owner}&status=Pending&pageSize=100",null,200);
+            var pendingCount=Convert.ToInt32(await Sql("SELECT count(*) FROM \"Orders\" WHERE NOT \"IsDeleted\" AND \"UserId\"=$1 AND \"Status\"=1",owner));
+            Check("Order status filter and count are applied before pagination",page!["totalCount"]!.GetValue<int>()==pendingCount&&page["items"]!.AsArray().All(x=>x!["status"]!.GetValue<string>()=="Pending"&&x["userId"]!.GetValue<int>()==owner));
+            foreach(var invalid in new[]{"page=0","page=-1","pageSize=0","pageSize=101","page=2147483647&pageSize=100","status=Unknown","status=1","userId=0","page=abc"})
+                await Call(HttpMethod.Get,"orders?"+invalid,null,400);
+            page=await Call(HttpMethod.Get,"orders?userId=2147483647",null,200);
+            Check("Empty owner filter returns zero page metadata",page!["totalCount"]!.GetValue<int>()==0&&page["totalPages"]!.GetValue<int>()==0&&page["items"]!.AsArray().Count==0&&!page["hasNextPage"]!.GetValue<bool>()&&!page["hasPreviousPage"]!.GetValue<bool>());
+
             var movements=Convert.ToInt64(await Sql("SELECT count(*) FROM \"StockMovements\" WHERE \"ProductId\"=$1",pid));
             foreach(var assignment in new[]{"\"StockQuantity\"=-1","\"Price\"=0","\"Price\"=-1","\"Price\"='NaN'::numeric","\"Price\"='Infinity'::numeric","\"Price\"='-Infinity'::numeric"})
             {

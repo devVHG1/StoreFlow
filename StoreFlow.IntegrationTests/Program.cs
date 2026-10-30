@@ -205,7 +205,7 @@ try
     Check("Total 34 and persisted in PostgreSQL",order["totalAmount"]!.GetValue<decimal>()==34m && Convert.ToDecimal(await Sql("SELECT \"TotalAmount\" FROM \"Orders\" WHERE \"Id\"=$1",oid))==34m);
     Check("Stock reserved for all items",await Stock(a)==8 && await Stock(b)==17);
     var list=await Call("GET","/api/orders",null,200);
-    Check("List includes order",list!.AsArray().Any(x=>x!["id"]!.GetValue<int>()==oid));
+    Check("List includes order",list!["items"]!.AsArray().Any(x=>x!["id"]!.GetValue<int>()==oid));
     await Call("GET","/api/orders/"+oid,null,200);
     int Item(JsonNode o,int pid)=>o["items"]!.AsArray().Single(x=>x!["productId"]!.GetValue<int>()==pid)!["id"]!.GetValue<int>();
     int ia=Item(order,a), ib=Item(order,b);

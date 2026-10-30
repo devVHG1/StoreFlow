@@ -68,7 +68,12 @@ internal sealed class Orders : IOrderRepository
     public List<Order> Rows { get; } = [];
     public List<Product> Products { get; } = [];
     public bool UserExists { get; set; }=true;
-    public Task<List<Order>> GetAllAsync(int? userId,CancellationToken ct)=>Task.FromResult(Rows.Where(x=>userId==null||x.UserId==userId).ToList());
+    public Task<(List<Order> Items,int TotalCount)> GetAllAsync(OrderQuery query,int? userId,CancellationToken ct)
+    {
+        var rows=Rows.Where(x=>!x.IsDeleted&&(userId==null||x.UserId==userId));
+        if(!string.IsNullOrEmpty(query.Status))rows=rows.Where(x=>x.Status.ToString()==query.Status);
+        return Task.FromResult((rows.OrderByDescending(x=>x.Id).Skip((query.Page-1)*query.PageSize).Take(query.PageSize).ToList(),rows.Count()));
+    }
     public Task<Order?> GetAsync(int id,CancellationToken ct)=>Task.FromResult(Rows.SingleOrDefault(x=>x.Id==id));
     public Task<Order?> GetForUpdateAsync(int id,CancellationToken ct)=>GetAsync(id,ct);
     public Task<bool> UserExistsAsync(int id,CancellationToken ct)=>Task.FromResult(UserExists);

@@ -46,3 +46,19 @@ test('Order details display historical snapshot instead of renamed catalog produ
  assert.match(nodes.get('orderLines').children[0].textContent,/Історична назва/);
  assert.doesNotMatch(nodes.get('orderLines').children[0].textContent,/Нова назва/);
 });
+test('Buyer order navigation requests bounded pages for the signed-in owner',async()=>{
+ const {context,nodes,app}=setup('shop.js');const routes=[];
+ app.state.token='test-token';app.state.user={id:7};app.state.view='orders';
+ context.fetch=async(url)=>{routes.push(url);const page=Number(new URL(url,'http://test').searchParams.get('page'));return {ok:true,status:200,text:async()=>JSON.stringify({items:[{id:page,userId:7,createdAt:'2026-10-30T00:00:00Z',status:'Pending',totalAmount:10,items:[]}],page,totalCount:11,totalPages:2,hasNextPage:page===1,hasPreviousPage:page>1})};};
+ await context.orders();assert.equal(nodes.get('orderPrevious').disabled,true);assert.equal(nodes.get('orderNext').disabled,false);
+ await nodes.get('orderNext').onclick();await new Promise(resolve=>setImmediate(resolve));
+ const query=new URL(routes[1],'http://test').searchParams;
+ assert.equal(query.get('page'),'2');assert.equal(query.get('pageSize'),'10');assert.equal(query.get('userId'),'7');assert.equal(nodes.get('orderNext').disabled,true);
+});
+
+test('Late order page responses cannot replace a newer page',async()=>{
+ const {context,nodes,app}=setup('shop.js');app.state.token='test-token';app.state.user={id:7};let resolveFirst;
+ context.fetch=url=>new Promise(resolve=>{const page=Number(new URL(url,'http://test').searchParams.get('page'));const response={ok:true,status:200,text:async()=>JSON.stringify({items:[],page,totalCount:20,totalPages:2,hasNextPage:page===1,hasPreviousPage:page===2})};if(page===1)resolveFirst=()=>resolve(response);else resolve(response);});
+ const first=context.orders();app.state.ordersPage=2;await context.orders();resolveFirst();await first;
+ assert.match(nodes.get('orderPageLabel').textContent,/Сторінка 2 з 2/);
+});

@@ -1,10 +1,11 @@
 using StoreFlow.Domain.Entities;
+using StoreFlow.Application.DTOs;
 
 namespace StoreFlow.Application.Interfaces;
 
 public interface IOrderRepository
 {
-    Task<List<Order>> GetAllAsync(int? userId, CancellationToken ct);
+    Task<(List<Order> Items, int TotalCount)> GetAllAsync(OrderQuery query, int? userId, CancellationToken ct);
     Task<Order?> GetAsync(int id, CancellationToken ct);
     Task<Order?> GetForUpdateAsync(int id, CancellationToken ct);
     Task<bool> UserExistsAsync(int id, CancellationToken ct);

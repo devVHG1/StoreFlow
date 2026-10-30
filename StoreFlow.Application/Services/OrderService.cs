@@ -9,8 +9,13 @@ namespace StoreFlow.Application.Services;
 
 public class OrderService(IOrderRepository repository, ICurrentUser current) : IOrderService
 {
-    public async Task<List<OrderDto>> GetAllAsync(CancellationToken ct) =>
-        (await repository.GetAllAsync(current.IsStaff ? null : current.Id, ct)).Select(Map).ToList();
+    public async Task<PagedResult<OrderDto>> GetAllAsync(OrderQuery query, CancellationToken ct)
+    {
+        if (!current.IsStaff && query.UserId is int requested && requested != current.Id)
+            throw new BusinessException(403, "Не можна переглядати замовлення іншого користувача.");
+        var result = await repository.GetAllAsync(query, current.IsStaff ? query.UserId : current.Id, ct);
+        return new(result.Items.Select(Map).ToList(), query.Page, query.PageSize, result.TotalCount);
+    }
 
     public async Task<OrderDto> GetAsync(int id, CancellationToken ct)
     {
