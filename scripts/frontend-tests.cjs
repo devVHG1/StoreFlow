@@ -62,3 +62,10 @@ test('Late order page responses cannot replace a newer page',async()=>{
  const first=context.orders();app.state.ordersPage=2;await context.orders();resolveFirst();await first;
  assert.match(nodes.get('orderPageLabel').textContent,/Сторінка 2 з 2/);
 });
+
+test('Manager returns to the last available page after filtered records disappear',async()=>{
+ const {context,nodes,app}=setup('panel.js');const routes=[];
+ app.state.token='test-token';app.state.view='orders';app.state.page=2;
+ context.fetch=async(url)=>{routes.push(url);const page=Number(new URL(url,'http://test').searchParams.get('page'));return {ok:true,status:200,text:async()=>JSON.stringify({items:[],page,totalCount:1,totalPages:1})};};
+ await context.load();assert.equal(app.state.page,1);assert.equal(routes.length,2);assert.equal(new URL(routes[1],'http://test').searchParams.get('page'),'1');
+});
