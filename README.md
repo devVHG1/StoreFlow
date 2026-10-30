@@ -426,6 +426,7 @@ erDiagram
     ORDERS ||--|{ ORDER_ITEMS : contains
     PRODUCTS ||--o{ ORDER_ITEMS : referenced_by
     CATEGORIES ||--o{ PRODUCTS : groups
+    ORDERS ||--o{ ORDER_REQUESTS : deduplicates
     USERS {
         int Id PK
         string FirstName
@@ -454,6 +455,9 @@ erDiagram
     }
     ORDERS {
         int Id PK
+        uuid Reference
+        bool IsDeleted
+        datetime ReservationExpiresAtUtc
         int UserId FK
         datetime CreatedAt
         int Status
@@ -463,14 +467,47 @@ erDiagram
         int Id PK
         int OrderId FK
         int ProductId FK
+        string ProductName
+        bool IsNameBackfilled
         int Quantity
         decimal UnitPrice
+    }
+    ORDER_REQUESTS {
+        bigint Id PK
+        int ActorId
+        string Key
+        string Fingerprint
+        int OrderId FK
+    }
+    STOCK_MOVEMENTS {
+        bigint Id PK
+        int ProductId
+        string ProductName
+        bigint QuantityChange
+        int BeforeQuantity
+        int AfterQuantity
+        int ActorId
+        uuid OrderReference
+        string Reason
+        datetime OccurredAtUtc
+    }
+    ORDER_STATUS_EVENTS {
+        bigint Id PK
+        int OrderId
+        int PreviousStatus
+        int Status
+        int ActorId
+        string Reason
+        datetime OccurredAtUtc
     }
 ```
 
 У PostgreSQL Status зберігається як integer; у JSON передається назва статусу.
 Зв’язки Products → Categories та OrderItems → Products забороняють каскадне видалення.
 Таблиця __EFMigrationsHistory зберігає застосовані міграції.
+Версія Product у відповіді API читається зі службового стовпця PostgreSQL xmin.
+Унікальність повторів забезпечує пара (ActorId, Key), а не сам Key.
+Посилання ProductId/OrderId у журналах не мають FK навмисно: історія зберігається навіть після фізичного видалення пов’язаного запису адміністратором БД.
 
 ## Swagger
 
@@ -560,3 +597,6 @@ CHECK-обмеження додатково захищають додатні с
 відсутність збереженого входу та адаптація до ширини 390px.
 
 ![Каталог покупця на тестових даних](docs/images/customer-shop.jpg)
+
+Перевірка надійності від 30.10.2026: 51 unit-тест, 5 перевірок інтерфейсу й 1197 інтеграційних перевірок пройшли
+локально та в [GitHub Actions](https://github.com/devVHG1/StoreFlow/actions/runs/41080856596), включно з відновленням непорожньої бази.
