@@ -8,18 +8,19 @@ function Test-DockerEngine {
     $probe.StartInfo.CreateNoWindow = $true
     $probe.StartInfo.RedirectStandardOutput = $true
     $probe.StartInfo.RedirectStandardError = $true
-    foreach ($argument in @('info','--format','{{.ServerVersion}}')) { $probe.StartInfo.ArgumentList.Add($argument) }
+    foreach ($argument in @('version','--format','{{.Server.Version}}')) { $probe.StartInfo.ArgumentList.Add($argument) }
     try {
         $null = $probe.Start()
         $output = $probe.StandardOutput.ReadToEndAsync()
         $errors = $probe.StandardError.ReadToEndAsync()
-        if (-not $probe.WaitForExit(3000)) { $probe.Kill($true); $probe.WaitForExit(); return $false }
+        if (-not $probe.WaitForExit(10000)) { $probe.Kill($true); $probe.WaitForExit(); return $false }
         return $probe.ExitCode -eq 0
     }
     finally { $probe.Dispose() }
 }
 Push-Location $root
 try {
+    & (Join-Path $PSScriptRoot 'Initialize-DockerEnv.ps1')
     if (-not (Test-DockerEngine)) {
         $desktop = 'C:\Program Files\Docker\Docker\Docker Desktop.exe'
         if (-not $IsWindows -or -not (Test-Path -LiteralPath $desktop)) { throw 'Запустіть Docker та повторіть команду.' }
