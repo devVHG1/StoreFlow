@@ -82,7 +82,10 @@ namespace StoreFlow.Infrastructure.Migrations
 
                     b.HasIndex("Status", "ReservationExpiresAtUtc");
 
-                    b.ToTable("Orders");
+                    b.ToTable("Orders", t =>
+                        {
+                            t.HasCheckConstraint("CK_Orders_TotalNonnegative", "\"TotalAmount\" >= 0 AND \"TotalAmount\" NOT IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric)");
+                        });
                 });
 
             modelBuilder.Entity("StoreFlow.Domain.Entities.OrderItem", b =>
@@ -93,11 +96,19 @@ namespace StoreFlow.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("IsNameBackfilled")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("OrderId")
                         .HasColumnType("integer");
 
                     b.Property<int>("ProductId")
                         .HasColumnType("integer");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("integer");
@@ -111,7 +122,12 @@ namespace StoreFlow.Infrastructure.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("OrderItems");
+                    b.ToTable("OrderItems", t =>
+                        {
+                            t.HasCheckConstraint("CK_OrderItems_QuantityPositive", "\"Quantity\" > 0");
+
+                            t.HasCheckConstraint("CK_OrderItems_UnitPricePositive", "\"UnitPrice\" > 0 AND \"UnitPrice\" NOT IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric)");
+                        });
                 });
 
             modelBuilder.Entity("StoreFlow.Domain.Entities.OrderRequest", b =>
@@ -220,6 +236,10 @@ namespace StoreFlow.Infrastructure.Migrations
                             t.HasCheckConstraint("CK_Products_DescriptionLength", "char_length(\"Description\") <= 4000");
 
                             t.HasCheckConstraint("CK_Products_NameLength", "char_length(\"Name\") <= 200");
+
+                            t.HasCheckConstraint("CK_Products_PricePositive", "\"Price\" > 0 AND \"Price\" NOT IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric)");
+
+                            t.HasCheckConstraint("CK_Products_StockNonnegative", "\"StockQuantity\" >= 0");
                         });
                 });
 

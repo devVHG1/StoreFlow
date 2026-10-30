@@ -35,7 +35,7 @@ var created = false;
 var apiLogs = new System.Collections.Concurrent.ConcurrentQueue<string>();
 Directory.CreateDirectory(Path.Combine(root, "StoreFlow.IntegrationTests", "results"));
 var output = Path.Combine(root, "StoreFlow.IntegrationTests", "results");
-foreach (var reportName in new[] { "orders.txt", "catalog.txt", "auth.txt", "validation.txt", "search.txt", "hardening.txt" })
+foreach (var reportName in new[] { "orders.txt", "catalog.txt", "auth.txt", "validation.txt", "search.txt", "hardening.txt", "reliability.txt" })
     File.Delete(Path.Combine(output, reportName));
 try
 {
@@ -56,8 +56,13 @@ try
             INSERT INTO "Users" ("Id","FirstName","LastName","Email","PasswordHash","Role","CreatedAt")
             VALUES (900000,'Legacy','One',' Legacy@Example.Invalid ','legacy-hash','Customer',now()),
                    (900001,'Legacy','Two','SECOND@Example.Invalid','legacy-hash','Customer',now());
+            INSERT INTO "Orders" ("Id","UserId","CreatedAt","Status","TotalAmount") VALUES (900000,900000,now(),1,1);
+            INSERT INTO "OrderItems" ("Id","OrderId","ProductId","Quantity","UnitPrice") VALUES (900000,900000,900000,1,1);
             """);
         await context.Database.MigrateAsync();
+        var legacyItem = await context.OrderItems.SingleAsync(x => x.Id == 900000);
+        Check("Migration backfills legacy name and marks its origin", legacyItem.ProductName == "Migration check" && legacyItem.IsNameBackfilled);
+        await context.Database.ExecuteSqlRawAsync("""DELETE FROM "OrderItems" WHERE "Id"=900000; DELETE FROM "Orders" WHERE "Id"=900000;""");
         Check("Migration preserves existing category and product", await context.Products.AnyAsync(x => x.Id == 900000));
         Check("Migration backfills existing user emails",
             await context.Users.AnyAsync(x => x.Id == 900000 && x.NormalizedEmail == "legacy@example.invalid") &&
@@ -338,8 +343,21 @@ try
     }
     failures += await ProductSearchSuite.RunAsync(baseUrl, connection, adminToken, Path.Combine(output, "search.txt"));
     failures += await ValidationSuite.RunAsync(baseUrl, connection, adminToken, Path.Combine(output, "validation.txt"));
+    failures += await ReliabilitySuite.RunAsync(baseUrl, connection, adminToken, Path.Combine(output,"reliability.txt"));
     failures += await HardeningSuite.RunAsync(baseUrl, connection, adminToken, Path.Combine(output, "hardening.txt"));
     failures += await AuthSuite.RunAsync(root, baseUrl, connection, jwtKey, adminToken, adminEmail, adminPassword, Path.Combine(output, "auth.txt"));
+    var backupStart = new ProcessStartInfo("pwsh") { WorkingDirectory = root, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+    foreach (var argument in new[] { "-NoProfile", "-File", Path.Combine(root,"scripts","Test-BackupRoundTrip.ps1"), "-SourceDatabase", databaseName }) backupStart.ArgumentList.Add(argument);
+    backupStart.Environment["ConnectionStrings__DefaultConnection"] = connection;
+    using (var backupCheck = Process.Start(backupStart)!)
+    {
+        var stdout = backupCheck.StandardOutput.ReadToEndAsync();
+        var stderr = backupCheck.StandardError.ReadToEndAsync();
+        await backupCheck.WaitForExitAsync();
+        var text = await stdout; var errors = await stderr;
+        Check("Nonempty backup restores all application tables and removes only temporary database", backupCheck.ExitCode == 0 && text.Contains("PASS:"));
+        if (backupCheck.ExitCode != 0) Console.WriteLine("Backup verification: " + errors);
+    }
 }
 catch(Exception error)
 {
@@ -369,7 +387,9 @@ var searchLines=File.Exists(Path.Combine(output,"search.txt"))?await File.ReadAl
 int searchChecks=searchLines.Count(x=>x.StartsWith("PASS ")||x.StartsWith("FAIL "));
 var hardeningLines = File.Exists(Path.Combine(output,"hardening.txt")) ? await File.ReadAllLinesAsync(Path.Combine(output,"hardening.txt")) : [];
 int hardeningChecks = hardeningLines.Count(x => x.StartsWith("PASS ") || x.StartsWith("FAIL "));
-results.Insert(0,$"Total: {results.Count + catalogChecks + authChecks + validationChecks + searchChecks + hardeningChecks} checks; Orders/middleware/lifecycle: {results.Count}; Catalog: {catalogChecks}; Auth: {authChecks}; Validation: {validationChecks}; Search: {searchChecks}; failures: {failures}");
+var reliabilityLines = File.Exists(Path.Combine(output,"reliability.txt")) ? await File.ReadAllLinesAsync(Path.Combine(output,"reliability.txt")) : [];
+int reliabilityChecks = reliabilityLines.Count(x => x.StartsWith("PASS ") || x.StartsWith("FAIL "));
+results.Insert(0,$"Total: {results.Count + catalogChecks + authChecks + validationChecks + searchChecks + hardeningChecks + reliabilityChecks} checks; Orders/middleware/lifecycle: {results.Count}; Catalog: {catalogChecks}; Auth: {authChecks}; Validation: {validationChecks}; Search: {searchChecks}; failures: {failures}");
 await File.WriteAllLinesAsync(Path.Combine(output,"orders.txt"),results);
 Console.WriteLine(results[0]);
 foreach(var line in results.Where(x=>x.StartsWith("FAIL"))) Console.WriteLine(line);

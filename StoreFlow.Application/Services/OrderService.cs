@@ -50,7 +50,7 @@ public class OrderService(IOrderRepository repository, ICurrentUser current) : I
                 var product = products.SingleOrDefault(x => x.Id == line.ProductId)
                     ?? throw new BusinessException(404, "Товар не знайдено.");
                 Reserve(product, line.Quantity);
-                order.Items.Add(new OrderItem { ProductId = product.Id, Quantity = line.Quantity, UnitPrice = product.Price });
+                order.Items.Add(new OrderItem { ProductId = product.Id, ProductName = product.Name, Quantity = line.Quantity, UnitPrice = product.Price });
             }
             Recalculate(order);
             repository.Add(order);
@@ -72,7 +72,7 @@ public class OrderService(IOrderRepository repository, ICurrentUser current) : I
                 throw new BusinessException(400, "Замовлення може містити до 100 різних товарів.");
             Reserve(product, request.Quantity);
             if (item is null)
-                order.Items.Add(new OrderItem { ProductId = product.Id, Quantity = request.Quantity, UnitPrice = product.Price });
+                order.Items.Add(new OrderItem { ProductId = product.Id, ProductName = product.Name, Quantity = request.Quantity, UnitPrice = product.Price });
             else
                 item.Quantity = AddQuantity(item.Quantity, request.Quantity);
             Recalculate(order);
@@ -219,7 +219,7 @@ public class OrderService(IOrderRepository repository, ICurrentUser current) : I
 
     internal static OrderDto Map(Order order) => new(order.Id, order.UserId, order.CreatedAt, order.Status,
         order.TotalAmount, order.Items.OrderBy(x => x.Id).Select(x =>
-            new OrderItemDto(x.Id, x.ProductId, x.Quantity, x.UnitPrice, x.Quantity * x.UnitPrice)).ToList(), order.ReservationExpiresAtUtc);
+            new OrderItemDto(x.Id, x.ProductId, x.Quantity, x.UnitPrice, x.Quantity * x.UnitPrice, x.ProductName, x.IsNameBackfilled)).ToList(), order.ReservationExpiresAtUtc);
 }
 
 internal static class OrderTaskExtensions

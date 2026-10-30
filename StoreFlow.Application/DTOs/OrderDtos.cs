@@ -3,7 +3,7 @@ using StoreFlow.Domain.Enums;
 
 namespace StoreFlow.Application.DTOs;
 
-public record OrderItemDto(int Id, int ProductId, int Quantity, decimal UnitPrice, decimal LineTotal);
+public record OrderItemDto(int Id, int ProductId, int Quantity, decimal UnitPrice, decimal LineTotal, string ProductName = "", bool IsNameBackfilled = false);
 public record OrderDto(int Id, int UserId, DateTime CreatedAt, OrderStatus Status, decimal TotalAmount, List<OrderItemDto> Items, DateTime? ReservationExpiresAtUtc = null);
 
 public class CreateOrderItemDto

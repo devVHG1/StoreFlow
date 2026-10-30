@@ -52,6 +52,18 @@ public class StoreFlowDbContext : DbContext
                 t.HasCheckConstraint("CK_" + table + "_DescriptionLength", "char_length(\"Description\") <= 4000");
             });
         }
+        modelBuilder.Entity<Product>().ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_Products_PricePositive", "\"Price\" > 0 AND \"Price\" NOT IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric)");
+            t.HasCheckConstraint("CK_Products_StockNonnegative", "\"StockQuantity\" >= 0");
+        });
+        modelBuilder.Entity<OrderItem>().Property(x => x.ProductName).HasMaxLength(200);
+        modelBuilder.Entity<OrderItem>().ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_OrderItems_QuantityPositive", "\"Quantity\" > 0");
+            t.HasCheckConstraint("CK_OrderItems_UnitPricePositive", "\"UnitPrice\" > 0 AND \"UnitPrice\" NOT IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric)");
+        });
+        modelBuilder.Entity<Order>().ToTable(t => t.HasCheckConstraint("CK_Orders_TotalNonnegative", "\"TotalAmount\" >= 0 AND \"TotalAmount\" NOT IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric)"));
         modelBuilder.Entity<Product>().Property(x => x.Version).IsRowVersion().HasColumnName("xmin");
         modelBuilder.Entity<Order>().HasIndex(x => new { x.Status, x.ReservationExpiresAtUtc });
         modelBuilder.Entity<OrderRequest>().Property(x => x.Key).HasMaxLength(128);

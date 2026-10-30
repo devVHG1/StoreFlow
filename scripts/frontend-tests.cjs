@@ -6,7 +6,7 @@ const vm=require('node:vm');
 const web=path.join(__dirname,'../StoreFlow.Аpi/wwwroot');
 function setup(file,stored={}){
  const nodes=new Map();
- function node(){return {value:'',options:[],dataset:{},classList:{contains:()=>false,add(){},remove(){},toggle(){}},replaceChildren(){},append(){},setAttribute(){},close(){},showModal(){},querySelector(){return node();}};}
+ function node(){return {children:[],value:'',options:[],dataset:{},classList:{contains:()=>false,add(){},remove(){},toggle(){}},replaceChildren(...children){this.children=[...children];},append(...children){this.children.push(...children);},setAttribute(){},close(){},showModal(){},querySelector(){return node();}};}
  const document={getElementById(id){if(!nodes.has(id))nodes.set(id,node());return nodes.get(id);},createElement:node,querySelectorAll:()=>[]};
  const storage=new Map(Object.entries(stored));
  const context=vm.createContext({document,sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},crypto:{randomUUID:()=> 'fixed-test-request'},console,URLSearchParams});
@@ -36,4 +36,13 @@ test('Fractional prices remain valid JSON without losing decimal precision',()=>
  for(const [input,expected] of [['000.50','0.50'],['001e2','1e2'],['.5','0.5'],['1.','1'],['1.e2','1e2'],['0.1234567890123456789012345678','0.1234567890123456789012345678']]){
   assert.equal(app.jsonPrice(input),expected);assert.doesNotThrow(()=>JSON.parse('{"price":'+app.jsonPrice(input)+'}'));
  }
+});
+
+test('Order details display historical snapshot instead of renamed catalog product',async()=>{
+ const {context,nodes,app}=setup('shop.js');
+ app.state.user={id:7};app.state.token='test-token';app.state.products.set(1,{name:'Нова назва'});
+ context.fetch=async(url)=>({ok:true,status:200,text:async()=>JSON.stringify(url.endsWith('/history')?[]:{id:1,userId:7,status:'Pending',totalAmount:10,items:[{productId:1,productName:'Історична назва',unitPrice:10,quantity:1,lineTotal:10,isNameBackfilled:false}]})});
+ await context.orderDetails(1);
+ assert.match(nodes.get('orderLines').children[0].textContent,/Історична назва/);
+ assert.doesNotMatch(nodes.get('orderLines').children[0].textContent,/Нова назва/);
 });

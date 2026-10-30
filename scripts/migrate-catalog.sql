@@ -428,3 +428,92 @@ BEGIN
 END $EF$;
 COMMIT;
 
+START TRANSACTION;
+
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261030150834_PreserveOrderItemNamesAndDataRules') THEN
+    ALTER TABLE "OrderItems" ADD "IsNameBackfilled" boolean NOT NULL DEFAULT FALSE;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261030150834_PreserveOrderItemNamesAndDataRules') THEN
+    ALTER TABLE "OrderItems" ADD "ProductName" character varying(200) NOT NULL DEFAULT '';
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261030150834_PreserveOrderItemNamesAndDataRules') THEN
+    ALTER TABLE "Products" ADD CONSTRAINT "CK_Products_PricePositive" CHECK ("Price" > 0 AND "Price" NOT IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric));
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261030150834_PreserveOrderItemNamesAndDataRules') THEN
+    ALTER TABLE "Products" ADD CONSTRAINT "CK_Products_StockNonnegative" CHECK ("StockQuantity" >= 0);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261030150834_PreserveOrderItemNamesAndDataRules') THEN
+    ALTER TABLE "Orders" ADD CONSTRAINT "CK_Orders_TotalNonnegative" CHECK ("TotalAmount" >= 0 AND "TotalAmount" NOT IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric));
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261030150834_PreserveOrderItemNamesAndDataRules') THEN
+    ALTER TABLE "OrderItems" ADD CONSTRAINT "CK_OrderItems_QuantityPositive" CHECK ("Quantity" > 0);
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261030150834_PreserveOrderItemNamesAndDataRules') THEN
+    ALTER TABLE "OrderItems" ADD CONSTRAINT "CK_OrderItems_UnitPricePositive" CHECK ("UnitPrice" > 0 AND "UnitPrice" NOT IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric));
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261030150834_PreserveOrderItemNamesAndDataRules') THEN
+    UPDATE "OrderItems" AS item SET "ProductName"=product."Name", "IsNameBackfilled"=true
+    FROM "Products" AS product WHERE item."ProductId"=product."Id";
+
+    CREATE FUNCTION storeflow_item_snapshot() RETURNS trigger LANGUAGE plpgsql AS $fn$
+    BEGIN
+        IF TG_OP = 'INSERT' THEN
+            IF NEW."ProductName" = '' THEN
+                SELECT "Name" INTO NEW."ProductName" FROM "Products" WHERE "Id"=NEW."ProductId";
+                NEW."ProductName" := COALESCE(NEW."ProductName", 'Товар #' || NEW."ProductId");
+                NEW."IsNameBackfilled" := true;
+            END IF;
+        ELSIF NEW."ProductName" IS DISTINCT FROM OLD."ProductName"
+           OR NEW."IsNameBackfilled" IS DISTINCT FROM OLD."IsNameBackfilled"
+           OR NEW."UnitPrice" IS DISTINCT FROM OLD."UnitPrice"
+           OR NEW."ProductId" IS DISTINCT FROM OLD."ProductId"
+           OR NEW."OrderId" IS DISTINCT FROM OLD."OrderId" THEN
+            RAISE EXCEPTION 'Order item snapshot is immutable' USING ERRCODE = '23514';
+        END IF;
+        RETURN NEW;
+    END $fn$;
+    CREATE TRIGGER item_snapshot BEFORE INSERT OR UPDATE ON "OrderItems"
+    FOR EACH ROW EXECUTE FUNCTION storeflow_item_snapshot();
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261030150834_PreserveOrderItemNamesAndDataRules') THEN
+    INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+    VALUES ('20261030150834_PreserveOrderItemNamesAndDataRules', '8.0.33');
+    END IF;
+END $EF$;
+COMMIT;
+
